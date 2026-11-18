@@ -10,7 +10,7 @@ namespace TabletopReversi
     /// <summary>Checks the shipped clips through the real decoder, UI controls and caption clock.</summary>
     public static class ReversiVideoVerification
     {
-        enum Phase { SelectionReady, SelectionClock, GuideReady, BeforeCut, FirstBlackout, AfterCut, SecondBlackout, MiddleSeek, EndingSeek, PauseSeek, RebuiltGuide, ResumedClock, ReturnedSelection }
+        enum Phase { SelectionReady, SelectionClock, GuideReady, BeforeCut, FirstBlackout, AfterCut, SecondBlackout, LateCutCleanup, MiddleSeek, EndingSeek, PauseSeek, RebuiltGuide, ResumedClock, ReturnedSelection }
         static ReversiGame game;
         static ReversiReplayPlayer replay;
         static VideoPlayer watched;
@@ -68,6 +68,7 @@ namespace TabletopReversi
                     case Phase.FirstBlackout: VerifyFirstBlackout(); break;
                     case Phase.AfterCut: VerifyAfterCut(); break;
                     case Phase.SecondBlackout: VerifySecondBlackout(); break;
+                    case Phase.LateCutCleanup: VerifyLateCutCleanup(); break;
                     case Phase.MiddleSeek: VerifyMiddleSeek(); break;
                     case Phase.EndingSeek: VerifyEndingSeek(); break;
                     case Phase.PauseSeek: VerifyPauseSeek(); break;
@@ -98,7 +99,7 @@ namespace TabletopReversi
             if (replay.PlaybackTime < .35 || replay.PlaybackTime > ReversiReplayTimeline.SelectionDuration - .5) return;
             Check(game.CurrentScreen == ReversiGame.GameScreen.GameSelection, "startup remains at game selection");
             Check(HasText("あそび選択"), "selection uses the requested heading");
-            RejectText("あそびのテーブル", "ゲームを選ぶ", "今日は、どのあそびにする？", "今日はどの遊びにする");
+            RejectText("あそびのテーブル", "ゲームを選ぶ", "今日は、どのあそびにする？", "今日はどの遊びにする", "1つのあそび");
             RejectContains("ゲームを選ぶと、");
             Check(game.GetComponentsInChildren<TabletopBoardGraphic>().Length == 0, "selection uses footage instead of a static board graphic");
             VerifyClip("ReversiIntro", ReversiReplayTimeline.SelectionDuration);
@@ -175,6 +176,18 @@ namespace TabletopReversi
             if (!AtDecodedTarget() || HasVisibleRulesCaption()) return;
             Check(SampleBrightness(watched.targetTexture) < 8, "decoded footage briefly blacks out at the second cut");
             Check(string.IsNullOrEmpty(replay.CurrentCaption), "second blackout hides the rule explanation");
+            Seek(21.3, Phase.LateCutCleanup);
+        }
+
+        static void VerifyLateCutCleanup()
+        {
+            if (!AtDecodedTarget() || !HasText(replay.CurrentCaption)) return;
+            // The previous film retained a white title card from 21.04s until 21.58s.
+            // This patch lies inside that card, left of its lettering, but over green cloth in clean footage.
+            Check(SampleFormerCardBrightness(watched.targetTexture) < 230,
+                "decoded late-cut footage contains no stale white skip-title card");
+            Check(replay.CurrentCaption == ExpectedCaption(replay.PlaybackTime),
+                "normal rule explanation remains synchronized after the late-cut cleanup");
             replay.SeekChapter(middleChapter);
             expectedTime = ReversiReplayTimeline.Chapters[middleChapter].Start;
             Next(Phase.MiddleSeek);
@@ -316,6 +329,29 @@ namespace TabletopReversi
                 double total = 0;
                 foreach (Color32 pixel in sample.GetPixels32()) total += pixel.r + pixel.g + pixel.b;
                 return total / (12 * 12 * 3);
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                if (sample != null) UnityEngine.Object.Destroy(sample);
+            }
+        }
+
+        static double SampleFormerCardBrightness(RenderTexture target)
+        {
+            const int size = 8;
+            RenderTexture previous = RenderTexture.active;
+            Texture2D sample = null;
+            try
+            {
+                RenderTexture.active = target;
+                sample = new Texture2D(size, size, TextureFormat.RGB24, false);
+                sample.ReadPixels(new Rect(Mathf.RoundToInt(target.width * .315f) - size / 2,
+                    Mathf.RoundToInt(target.height * .5f) - size / 2, size, size), 0, 0);
+                sample.Apply();
+                double total = 0;
+                foreach (Color32 pixel in sample.GetPixels32()) total += pixel.r + pixel.g + pixel.b;
+                return total / (size * size * 3);
             }
             finally
             {

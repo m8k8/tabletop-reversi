@@ -76,7 +76,6 @@ namespace TabletopReversi
         {
             Panel(screenRoot, "Ivory menu surface", 0, 0, 1600, 1000, new Color(.969f, .969f, .937f, .94f), 0);
             Brand(screenRoot, 80, 46);
-            Label(screenRoot, "1つのあそび", 1210, 48, 310, 36, 14, Muted, false, TextAnchor.MiddleRight);
             Panel(screenRoot, "Game card shadow", 420, 189, 760, 620, new Color(.16f, .25f, .20f, .055f), 26).raycastTarget = false;
             var card = Action(screenRoot, "", 420, 180, 760, 620, OpenReversiSettings, C("#FFFFF8"), Ink, 18);
             card.name = "Choose Reversi";
@@ -195,7 +194,7 @@ namespace TabletopReversi
         {
             if (CurrentScreen != GameScreen.Match) return;
             if (modal != null) { CloseModal(); return; }
-            var p = CreateModal("対局メニュー", 536);
+            var p = CreateModal("対局メニュー", 465);
             Action(p, "閉じる", 40, 104, 580, 57, CloseModal, Teal, Color.white, 21).name = "Resume Match";
             var hint = Action(p, "✦  ヒント", 40, 179, 282, 53, () => { CloseModal(); ShowHint(); }, C("#EAF0E3"), Ink, 18);
             hint.interactable = IsHumanTurn;
@@ -204,7 +203,6 @@ namespace TabletopReversi
             Action(p, "はじめから", 40, 250, 580, 49, RequestReset, C("#EEF1E8"), Ink, 17);
             Action(p, "設定を変える", 40, 313, 580, 49, RequestSettings, C("#EEF1E8"), Ink, 17);
             Action(p, "対局をやめる", 40, 376, 580, 49, RequestGameSelection, C("#EEF1E8"), Ink, 17);
-            Label(p, "Escでメニューを閉じる", 40, 466, 580, 30, 13, Muted, false, TextAnchor.MiddleCenter);
         }
 
         RectTransform CreateModal(string title, int height)
