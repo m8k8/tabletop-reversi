@@ -16,7 +16,8 @@ namespace TabletopReversi
         ReversiReplayPlayer screenReplay;
         GameScreen renderedScreen;
         static Sprite uiRounded, uiCircle;
-        static readonly Color Ink = C("#29413F"), Teal = C("#379C9E"), Muted = C("#7B8B80"), Paper = C("#F7F7EF");
+        static readonly Color Ink = C("#203D34"), Teal = C("#10534D"), Muted = C("#506357"), Paper = C("#F7F7EF");
+        static readonly Color Secondary = C("#3D5D50"), OptionIdle = C("#526D5E"), SelectionRim = C("#D7BD78"), Hud = C("#203F34");
         static readonly string[] UiDifficultyLabels = { "やさしい", "ふつう", "つよい" };
 
         sealed class UiPlayerBadge
@@ -90,7 +91,7 @@ namespace TabletopReversi
         void BuildSettings()
         {
             Panel(screenRoot, "Ivory settings surface", 0, 0, 1600, 1000, new Color(.969f, .969f, .937f, .94f), 0);
-            var back = Action(screenRoot, "←  あそび選択", 80, 46, 211, 45, ShowGameSelection, C("#E9EEE3"), Ink, 16);
+            var back = Action(screenRoot, "←  あそび選択", 80, 46, 211, 45, ShowGameSelection, Secondary, Color.white, 16);
             back.name = "Back to games";
             Label(screenRoot, "あそび選択", 1160, 48, 360, 36, 19, Muted, true, TextAnchor.MiddleRight);
             Label(screenRoot, "リバーシについて", 82, 137, 710, 73, 46, Ink, true);
@@ -103,18 +104,18 @@ namespace TabletopReversi
             var stage = Label(screenRoot, "", 86, 744, 698, 31, 18, Teal, true);
             var caption = Label(screenRoot, "", 86, 784, 698, 70, 18, Ink);
             screenReplay.SetCaptionTargets(caption, stage);
-            var previous = Action(screenRoot, "←  前の場面", 86, 881, 205, 47, () => screenReplay.StepChapter(-1), C("#E9EEE3"), Ink, 15);
+            var previous = Action(screenRoot, "←  前の場面", 86, 881, 205, 47, () => screenReplay.StepChapter(-1), Secondary, Color.white, 15);
             previous.name = "Replay Previous Chapter";
-            var playback = Action(screenRoot, "一時停止", 309, 881, 205, 47, () => screenReplay.TogglePlayback(), C("#E9EEE3"), Ink, 15);
+            var playback = Action(screenRoot, "一時停止", 309, 881, 205, 47, () => screenReplay.TogglePlayback(), Secondary, Color.white, 15);
             playback.name = "Replay Toggle Playback"; screenReplay.PlaybackLabel = playback.GetComponentInChildren<Text>();
-            var next = Action(screenRoot, "次の場面  →", 532, 881, 252, 47, () => screenReplay.StepChapter(1), C("#E9EEE3"), Ink, 15);
+            var next = Action(screenRoot, "次の場面  →", 532, 881, 252, 47, () => screenReplay.StepChapter(1), Secondary, Color.white, 15);
             next.name = "Replay Next Chapter";
             var settings = Panel(screenRoot, "Match settings", 860, 128, 660, 706, C("#FFFFF8"), 25).rectTransform;
             Label(settings, "対戦の準備", 40, 24, 580, 44, 25, Ink, true);
             Label(settings, "対戦相手", 40, 89, 580, 30, 15, Muted);
             Option(settings, "CPUと対戦", "Opponent CPU", 40, 127, 282, 51, !pendingTwoPlayers, () => { pendingTwoPlayers = false; RenderScreen(); });
             Option(settings, "ふたりで", "Opponent Local", 338, 127, 282, 51, pendingTwoPlayers, () => { pendingTwoPlayers = true; RenderScreen(); });
-            Label(settings, "CPUの強さ", 40, 197, 580, 30, 15, pendingTwoPlayers ? C("#ACB5A7") : Muted);
+            Label(settings, "CPUの強さ", 40, 197, 580, 30, 15, Muted);
             if (pendingTwoPlayers)
                 Label(settings, "同じ画面で、交互に操作します。", 40, 238, 580, 45, 17, Muted);
             else
@@ -142,11 +143,11 @@ namespace TabletopReversi
         {
             board = CreateBoard(screenRoot, "Reversi board", 197, 935, 1.22f, true);
             board.ShowLegal = showLegal;
-            var menu = Action(screenRoot, "メニュー", 56, 40, 160, 54, ShowPause, new Color(.13f, .20f, .17f, .80f), Color.white, 18);
+            var menu = Action(screenRoot, "メニュー", 56, 40, 160, 54, ShowPause, Hud, Color.white, 18);
             menu.name = "Open Match Menu";
             lowerPlayer = PlayerBadge(screenRoot, "Lower player", 56, 885, humanPlayer, false);
             upperPlayer = PlayerBadge(screenRoot, "Upper player", 1320, 40, -humanPlayer, true);
-            toastPanel = Panel(screenRoot, "Transient message", 430, 914, 740, 47, new Color(.16f, .23f, .19f, .86f), 23).rectTransform;
+            toastPanel = Panel(screenRoot, "Transient message", 430, 914, 740, 47, Hud, 23).rectTransform;
             toastPanel.GetComponent<Image>().raycastTarget = false;
             toastText = Label(toastPanel, "", 16, 0, 708, 47, 16, Color.white, false, TextAnchor.MiddleCenter);
             toastPanel.gameObject.SetActive(false);
@@ -156,7 +157,7 @@ namespace TabletopReversi
         {
             var outline = Panel(parent, name, x, y, 224, 78, Color.clear, 37);
             outline.raycastTarget = false;
-            var background = Panel(outline.transform, "Nameplate", 2, 2, 220, 74, new Color(.13f, .20f, .17f, .73f), 35);
+            var background = Panel(outline.transform, "Nameplate", 2, 2, 220, 74, Hud, 35);
             background.raycastTarget = false;
             float discX = right ? 156 : 13;
             Disc(background.transform, discX, 10, 54, player == ReversiRules.Black ? C("#9DAD9C") : C("#7E8D7C"));
@@ -187,7 +188,7 @@ namespace TabletopReversi
         {
             if (badge == null) return;
             badge.Name.text = PlayerName(badge.Player);
-            badge.Outline.color = !Rules.IsFinished && Rules.CurrentPlayer == badge.Player ? C("#4AC9C8") : Color.clear;
+            badge.Outline.color = !Rules.IsFinished && Rules.CurrentPlayer == badge.Player ? SelectionRim : Color.clear;
         }
 
         public void ShowPause()
@@ -196,13 +197,13 @@ namespace TabletopReversi
             if (modal != null) { CloseModal(); return; }
             var p = CreateModal("対局メニュー", 465);
             Action(p, "閉じる", 40, 104, 580, 57, CloseModal, Teal, Color.white, 21).name = "Resume Match";
-            var hint = Action(p, "✦  ヒント", 40, 179, 282, 53, () => { CloseModal(); ShowHint(); }, C("#EAF0E3"), Ink, 18);
+            var hint = Action(p, "✦  ヒント", 40, 179, 282, 53, () => { CloseModal(); ShowHint(); }, Secondary, Color.white, 18);
             hint.interactable = IsHumanTurn;
-            var undo = Action(p, "↶  待った", 338, 179, 282, 53, () => { CloseModal(); UndoMove(); }, C("#EAF0E3"), Ink, 18);
+            var undo = Action(p, "↶  待った", 338, 179, 282, 53, () => { CloseModal(); UndoMove(); }, Secondary, Color.white, 18);
             undo.interactable = CanUndo;
-            Action(p, "はじめから", 40, 250, 580, 49, RequestReset, C("#EEF1E8"), Ink, 17);
-            Action(p, "設定を変える", 40, 313, 580, 49, RequestSettings, C("#EEF1E8"), Ink, 17);
-            Action(p, "対局をやめる", 40, 376, 580, 49, RequestGameSelection, C("#EEF1E8"), Ink, 17);
+            Action(p, "はじめから", 40, 250, 580, 49, RequestReset, Secondary, Color.white, 17);
+            Action(p, "設定を変える", 40, 313, 580, 49, RequestSettings, Secondary, Color.white, 17);
+            Action(p, "対局をやめる", 40, 376, 580, 49, RequestGameSelection, Secondary, Color.white, 17);
         }
 
         RectTransform CreateModal(string title, int height)
@@ -211,7 +212,7 @@ namespace TabletopReversi
             modal = Panel(canvasRoot, "Modal shade", 0, 0, 1600, 1000, new Color(.08f, .14f, .11f, .42f), 0).rectTransform;
             var p = Panel(modal, "Dialog", 470, (1000 - height) * .5f, 660, height, C("#FCFCF4"), 25).rectTransform;
             Label(p, title, 40, 27, 518, 53, 29, Ink, true);
-            Action(p, "×", 580, 28, 43, 43, CloseModal, C("#EDF1E7"), Muted, 25);
+            Action(p, "×", 580, 28, 43, 43, CloseModal, Secondary, Color.white, 25);
             Play(clickSound);
             return p;
         }
@@ -227,7 +228,7 @@ namespace TabletopReversi
         {
             var p = CreateModal(title, 312);
             Label(p, message, 40, 111, 580, 69, 18, Muted);
-            Action(p, "キャンセル", 40, 220, 282, 54, CloseModal, C("#EAF0E3"), Ink, 18);
+            Action(p, "キャンセル", 40, 220, 282, 54, CloseModal, Secondary, Color.white, 18);
             string accept = title.Contains("戻") ? "戻る" : title.Contains("はじめ") ? "はじめる" : "変更する";
             Action(p, accept, 338, 220, 282, 54, () => { CloseModal(); yes(); }, Teal, Color.white, 18);
         }
@@ -241,7 +242,7 @@ namespace TabletopReversi
             Label(p, PlayerName(humanPlayer), 40, 210, 282, 31, 17, Muted, false, TextAnchor.MiddleCenter);
             Label(p, PlayerName(-humanPlayer), 338, 210, 282, 31, 17, Muted, false, TextAnchor.MiddleCenter);
             Label(p, "いい勝負でした。また、ひと勝負。", 40, 268, 580, 35, 18, Muted, false, TextAnchor.MiddleCenter);
-            Action(p, "あそび選択", 40, 348, 282, 56, ShowGameSelection, C("#EAF0E3"), Ink, 18);
+            Action(p, "あそび選択", 40, 348, 282, 56, ShowGameSelection, Secondary, Color.white, 18);
             Action(p, "もう一度あそぶ", 338, 348, 282, 56, NewGame, Teal, Color.white, 18);
         }
 
@@ -276,17 +277,29 @@ namespace TabletopReversi
 
         Button Option(Transform parent, string text, string name, float x, float y, float w, float h, bool selected, Action callback)
         {
-            var result = Action(parent, text, x, y, w, h, callback, selected ? Teal : C("#EDF1E7"), selected ? Color.white : C("#6C8173"), 17);
+            var result = Action(parent, text, x, y, w, h, callback, selected ? Teal : OptionIdle, Color.white, 17);
             result.name = name;
+            if (selected) MarkSelected(result);
             return result;
         }
 
         void ColorOption(Transform parent, int player, float x, float y, bool selected)
         {
-            var b = Action(parent, "", x, y, 282, 54, () => { pendingPlayer = player; RenderScreen(); }, selected ? Teal : C("#EDF1E7"), Ink, 17);
+            var b = Action(parent, "", x, y, 282, 54, () => { pendingPlayer = player; RenderScreen(); }, selected ? Teal : OptionIdle, Color.white, 17);
             b.name = player == ReversiRules.Black ? "Color Black" : "Color White";
-            Disc(b.transform, 20, 12, 31, player == ReversiRules.Black ? C("#223129") : C("#CED7C6"));
-            Label(b.transform, player == ReversiRules.Black ? "黒（先手）" : "白（後手）", 63, 0, 202, 54, 17, selected ? Color.white : Ink, true);
+            if (selected) MarkSelected(b);
+            Disc(b.transform, 18, 10, 35, player == ReversiRules.Black ? C("#AABAA7") : C("#203D34"));
+            Disc(b.transform, 20, 12, 31, player == ReversiRules.Black ? C("#223129") : C("#D5DDCB"));
+            Label(b.transform, player == ReversiRules.Black ? "黒（先手）" : "白（後手）", 63, 0, 202, 54, 17, Color.white, true);
+        }
+
+        static void MarkSelected(Button button)
+        {
+            // The warm rim keeps selection visible beyond the change in green tone.
+            var outline = button.gameObject.AddComponent<Outline>();
+            outline.effectColor = SelectionRim;
+            outline.effectDistance = new Vector2(2, -2);
+            outline.useGraphicAlpha = false;
         }
 
         static Color C(string hex) { ColorUtility.TryParseHtmlString(hex, out Color c); return c; }
@@ -319,8 +332,8 @@ namespace TabletopReversi
         {
             var image = Panel(parent, "Button " + text, x, y, width, height, background, 21);
             var button = image.gameObject.AddComponent<Button>(); button.targetGraphic = image;
-            var colors = button.colors; colors.normalColor = Color.white; colors.highlightedColor = new Color(.93f, .98f, .95f);
-            colors.pressedColor = new Color(.80f, .91f, .85f); colors.selectedColor = Color.white; colors.disabledColor = new Color(1, 1, 1, .35f); colors.fadeDuration = .13f;
+            var colors = button.colors; colors.normalColor = Color.white; colors.highlightedColor = new Color(1.08f, 1.08f, 1.08f);
+            colors.pressedColor = new Color(.82f, .86f, .83f); colors.selectedColor = new Color(1.08f, 1.08f, 1.08f); colors.disabledColor = new Color(.55f, .60f, .58f, 1); colors.fadeDuration = .13f;
             button.colors = colors; button.navigation = new Navigation { mode = Navigation.Mode.None };
             button.onClick.AddListener(() => { if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null); callback(); });
             Label(image.transform, text, 0, 0, width, height, size, foreground, true, TextAnchor.MiddleCenter); return button;
