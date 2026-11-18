@@ -15,6 +15,8 @@ namespace TabletopReversi
         public bool ShowLegal = true;
         readonly Dictionary<int, float> animations = new Dictionary<int, float>();
         readonly Dictionary<int, int> oldColors = new Dictionary<int, int>();
+        ReversiRules replayRules;
+        ReversiReplayTimeline.Frame replayFrame;
         readonly Vector2 tl = new Vector2(130, 635), tr = new Vector2(858, 635);
         readonly Vector2 bl = new Vector2(47, 103), br = new Vector2(941, 103);
         const int CornerSegments = 10;
@@ -25,6 +27,13 @@ namespace TabletopReversi
         Vector2 P(float row, float col) => Vector2.LerpUnclamped(Vector2.LerpUnclamped(tl, bl, row / 8), Vector2.LerpUnclamped(tr, br, row / 8), col / 8);
         public Vector2 CellCenter(int row, int col) => P(row + .5f, col + .5f);
         public void Refresh() => SetVerticesDirty();
+        // Used only by the offline video baker; never changes the live match model.
+        public void SetReplayFrame(ReversiReplayTimeline.Frame frame)
+        {
+            replayFrame = frame;
+            replayRules = frame == null ? null : new ReversiRules(frame.Board, frame.CurrentPlayer);
+            SetVerticesDirty();
+        }
         public void AnimateMove(int row, int col, List<Move> flips, int player)
         {
             animations.Clear(); oldColors.Clear();
@@ -46,28 +55,44 @@ namespace TabletopReversi
         protected override void OnPopulateMesh(VertexHelper vh)
         {
             vh.Clear();
-            if (Owner == null || Owner.Rules == null) return;
+            ReversiRules rules = replayRules ?? (Owner != null ? Owner.Rules : null);
+            if (rules == null) return;
             DrawFrame(vh);
             DrawCloth(vh);
-            if (!Owner.Rules.IsFinished && Owner.CanHumanMove)
+            if (replayFrame == null && !rules.IsFinished && Owner.CanHumanMove)
             {
                 if (ShowLegal)
-                    foreach (Move move in Owner.Rules.LegalMoves())
+                    foreach (Move move in rules.LegalMoves())
                         Ellipse(vh, CellCenter(move.Row, move.Col), 5.2f, 4.2f, new Color(.79f, .94f, .70f, .56f));
-                if (FocusRow >= 0 && Owner.Rules.GetFlips(FocusRow, FocusCol, Owner.Rules.CurrentPlayer).Count > 0)
+                if (FocusRow >= 0 && rules.GetFlips(FocusRow, FocusCol, rules.CurrentPlayer).Count > 0)
                 {
-                    DrawPiece(vh, CellCenter(FocusRow, FocusCol), FocusRow, Owner.Rules.CurrentPlayer, .25f, 1);
+                    DrawPiece(vh, CellCenter(FocusRow, FocusCol), FocusRow, rules.CurrentPlayer, .25f, 1);
                     DrawSelection(vh, FocusRow, FocusCol);
                 }
             }
             for (int row = 0; row < 8; row++)
                 for (int col = 0; col < 8; col++)
                 {
-                    int player = Owner.Rules.Board[row, col];
+                    int player = rules.Board[row, col];
                     if (player == 0) continue;
                     int key = row * 8 + col;
                     float scale = 1, raise = 0;
-                    if (animations.TryGetValue(key, out float start))
+                    if (replayFrame != null && replayFrame.AnimatedRow >= 0)
+                    {
+                        float t = replayFrame.MoveProgress;
+                        if (row == replayFrame.AnimatedRow && col == replayFrame.AnimatedCol)
+                        {
+                            scale = Mathf.Lerp(.2f, 1, Mathf.Sin(t * Mathf.PI * .5f));
+                            raise = Mathf.Sin(t * Mathf.PI) * 16;
+                        }
+                        else if (replayFrame.Flips.Contains(new Move(row, col)))
+                        {
+                            scale = Mathf.Max(.045f, Mathf.Abs(Mathf.Cos(t * Mathf.PI)));
+                            if (t < .5f) player = -replayFrame.PlacedPlayer;
+                            raise = Mathf.Sin(t * Mathf.PI) * 15;
+                        }
+                    }
+                    else if (replayFrame == null && animations.TryGetValue(key, out float start))
                     {
                         float t = Mathf.Clamp01((Time.unscaledTime - start) / .44f);
                         if (oldColors[key] == 0)
@@ -83,10 +108,12 @@ namespace TabletopReversi
                         }
                     }
                     DrawPiece(vh, CellCenter(row, col) + Vector2.up * raise, row, player, 1, scale);
-                    if (row == Owner.Rules.LastRow && col == Owner.Rules.LastCol)
+                    int lastRow = replayFrame == null ? rules.LastRow : replayFrame.LastRow;
+                    int lastCol = replayFrame == null ? rules.LastCol : replayFrame.LastCol;
+                    if (row == lastRow && col == lastCol)
                         Ellipse(vh, CellCenter(row, col) + Vector2.up * 3, 2.8f, 2.4f, C("#DEBF6F"));
                 }
-            if (HintRow >= 0 && !Owner.Rules.IsFinished)
+            if (replayFrame == null && HintRow >= 0 && !rules.IsFinished)
             {
                 float rx = 36 + HintRow * .7f;
                 Arc(vh, CellCenter(HintRow, HintCol), rx, rx * .77f, 0, Mathf.PI * 2, 2.7f, C("#F5CF77"));

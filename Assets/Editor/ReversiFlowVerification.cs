@@ -14,7 +14,7 @@ namespace TabletopReversi
     public static class ReversiFlowVerification
     {
         enum Phase { Navigation, PausedOpening, CpuOpening, CpuReply, CancelledCpu, LocalUndo }
-        static readonly HashSet<string> MatchLabels = new HashSet<string> { "あなた", "CPU", "1P", "2P", "黒", "白" };
+        static readonly HashSet<string> MatchLabels = new HashSet<string> { "あなた", "CPU", "1P", "2P", "メニュー" };
         static ReversiGame game;
         static Phase phase;
         static bool running;
@@ -110,16 +110,17 @@ namespace TabletopReversi
             Check(game.IsThinking && !game.CanHumanMove, "CPU starts automatically when human chooses white");
             Check(game.PlayerName(ReversiRules.White) == "あなた" && game.PlayerName(ReversiRules.Black) == "CPU",
                 "CPU labels follow the selected colour");
-            VerifyMatchHud("あなた", "CPU", "白", "黒");
-            game.ShowPause();
-            Check(!game.CanHumanMove, "pause blocks input during opening");
+            VerifyMatchHud("あなた", "CPU");
+            Click("Open Match Menu");
+            VerifyMenuLabels();
+            Check(!game.CanHumanMove, "visible menu button pauses the opening");
             Next(Phase.PausedOpening, 1.2);
         }
 
         static void VerifyPausedOpening()
         {
             Check(game.Rules.MoveCount == 0, "CPU does not place its opening disc while paused");
-            game.CloseModal();
+            Click("Resume Match");
             Next(Phase.CpuOpening);
         }
 
@@ -146,7 +147,7 @@ namespace TabletopReversi
             Check(game.Rules.MoveCount == 1 && game.Rules.CurrentPlayer == ReversiRules.White && game.CanHumanMove,
                 "undo restores the human's prior turn without removing CPU opening");
             Check(!game.CanUndo, "no human undo remains after returning to first human turn");
-            VerifyMatchHud("あなた", "CPU", "白", "黒");
+            VerifyMatchHud("あなた", "CPU");
             game.ShowPause();
             int movesBefore = game.Rules.MoveCount;
             Move move = game.Rules.LegalMoves()[0];
@@ -186,7 +187,7 @@ namespace TabletopReversi
             Check(game.PlayerName(ReversiRules.White) == "1P" && game.PlayerName(ReversiRules.Black) == "2P",
                 "local player labels follow 1P's selected colour");
             Check(game.Rules.CurrentPlayer == ReversiRules.Black, "black remains first even when assigned to 2P");
-            VerifyMatchHud("1P", "2P", "白", "黒");
+            VerifyMatchHud("1P", "2P");
             Move move = game.Rules.LegalMoves()[0];
             game.PlayCell(move.Row, move.Col);
             Check(game.Rules.MoveCount == 1 && game.Rules.CurrentPlayer == ReversiRules.White,
@@ -202,31 +203,42 @@ namespace TabletopReversi
             Check(game.Rules.MoveCount == 0 && game.Rules.CurrentPlayer == ReversiRules.Black && game.CanHumanMove,
                 "local undo restores the prior black turn");
             Check(!game.CanUndo, "empty local history disables undo");
-            VerifyMatchHud("1P", "2P", "白", "黒");
+            VerifyMatchHud("1P", "2P");
             game.ShowGameSelection();
             Check(game.CurrentScreen == ReversiGame.GameScreen.GameSelection, "verification leaves game selection visible");
             Finish(true, "menu/settings routing, white CPU opening, HUD, pause, right-click, undo, async cancellation and local 2P");
         }
 
-        static void VerifyMatchHud(string lowerName, string upperName, string lowerColour, string upperColour)
+        static void VerifyMatchHud(string lowerName, string upperName)
         {
             int labelCount = 0;
-            Text bottomName = null, topName = null, bottomColour = null, topColour = null;
+            Text bottomName = null, topName = null;
             foreach (Text text in game.GetComponentsInChildren<Text>())
             {
                 if (!text.gameObject.activeInHierarchy || string.IsNullOrEmpty(text.text)) continue;
-                Check(MatchLabels.Contains(text.text), "match contains no permanent menu, sidebar or score text: " + text.text);
+                Check(MatchLabels.Contains(text.text), "match contains only player names and menu text: " + text.text);
+                Check(text.text != "黒" && text.text != "白", "colour words are absent from match HUD");
                 labelCount++;
                 if (text.text == lowerName) bottomName = text;
                 if (text.text == upperName) topName = text;
-                if (text.text == lowerColour) bottomColour = text;
-                if (text.text == upperColour) topColour = text;
             }
-            Check(labelCount == 4, "match displays only two names and two colour labels");
-            Check(bottomName != null && topName != null && bottomColour != null && topColour != null,
-                "both player names and assigned colours are visible");
-            Check(IsCorner(bottomName, false) && IsCorner(bottomColour, false), "human or 1P badge appears in lower-left corner");
-            Check(IsCorner(topName, true) && IsCorner(topColour, true), "CPU or 2P badge appears in upper-right corner");
+            Check(labelCount == 3, "match displays only two names and the menu button");
+            Check(bottomName != null && topName != null, "both player names remain visible");
+            Check(IsCorner(bottomName, false), "human or 1P badge appears in lower-left corner");
+            Check(IsCorner(topName, true), "CPU or 2P badge appears in upper-right corner");
+            bool hasMenu = false;
+            foreach (Button button in game.GetComponentsInChildren<Button>())
+                if (button.name == "Open Match Menu" && button.interactable) hasMenu = true;
+            Check(hasMenu, "a visible match menu button is available");
+        }
+
+        static void VerifyMenuLabels()
+        {
+            var labels = new HashSet<string>();
+            foreach (Text text in game.GetComponentsInChildren<Text>()) labels.Add(text.text);
+            Check(labels.Contains("閉じる"), "match menu includes a close action");
+            Check(!labels.Contains("ルール確認"), "match menu does not include a rules dialog entry");
+            Check(labels.Contains("対局をやめる"), "match menu includes quitting the match");
         }
 
         static bool IsCorner(Text text, bool upperRight)
