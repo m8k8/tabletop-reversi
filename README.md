@@ -1,6 +1,6 @@
 # あそびのテーブル / Tabletop Reversi
 
-白と水色の軽やかなUIに、緑のフェルトとウォールナット調の盤面を組み合わせた、Unity製のリバーシゲームです。ひとりでCPUと対局したり、同じ画面でふたり対戦したりできます。
+白と水色の軽やかなUIに、鮮やかな緑の織り目と深いウォールナット調の木枠を組み合わせた、Unity製のリバーシゲームです。黒とアイボリーのマットなコマで、ひとりのCPU対戦や同じ画面でのふたり対戦を楽しめます。
 
 ![あそびのテーブルのゲーム画面](Documentation/preview.png)
 
@@ -44,7 +44,7 @@ Unityの **File → Build Profiles** から対象プラットフォームを選�
 
 ## プロジェクトについて
 
-UIはUnity uGUIで構成し、盤面や石には独自の描画・立体表現を使用しています。参考にした作品と素材の出典は [Documentation/REFERENCE.md](Documentation/REFERENCE.md) に記載しています。
+UIはUnity uGUIで構成しています。盤面の斜めの織り目、丸い面取りの木枠、コマの控えめな光沢・側面・接地影は、独自の手続き生成テクスチャと描画で表現しています。参考にした作品と素材の出典は [Documentation/REFERENCE.md](Documentation/REFERENCE.md) に記載しています。
 
 ソースコードは[MIT License](LICENSE)です。同梱のNoto Sans JPフォントには [SIL Open Font License 1.1](Assets/Fonts/OFL.txt) が適用されます。Unityおよび各パッケージには、それぞれの利用条件が適用されます。
 
