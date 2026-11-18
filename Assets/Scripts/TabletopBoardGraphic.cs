@@ -314,7 +314,13 @@ namespace TabletopReversi
             p += rectTransform.pivot * rectTransform.rect.size;
             return CellAt(p, out row, out col);
         }
-        public void OnPointerClick(PointerEventData e) { EventSystem.current.SetSelectedGameObject(null); if (Pointer(e, out int r, out int c)) Owner.PlayCell(r, c); }
+        public void OnPointerClick(PointerEventData e)
+        {
+            if (e.button == PointerEventData.InputButton.Right) { Owner.ShowPause(); return; }
+            if (e.button != PointerEventData.InputButton.Left) return;
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            if (Pointer(e, out int r, out int c)) Owner.PlayCell(r, c);
+        }
         public void OnPointerMove(PointerEventData e) { if (Pointer(e, out int r, out int c)) { FocusRow = r; FocusCol = c; } else { FocusRow = -1; FocusCol = -1; } SetVerticesDirty(); }
         public void OnPointerExit(PointerEventData e) { FocusRow = -1; FocusCol = -1; SetVerticesDirty(); }
     }
