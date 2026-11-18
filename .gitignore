@@ -1,0 +1,55 @@
+# Unity-generated files and caches
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Bb]uild/
+/[Bb]uilds/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/[Cc]aptures/
+/[Aa]ssets/AssetStoreTools*
+
+# IDE-generated files
+/.vs/
+/.idea/
+/.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Local machine and diagnostic files
+.DS_Store
+Thumbs.db
+*.log
+sysinfo.txt
+*.stackdump
+
+# Build outputs
+*.apk
+*.aab
+*.app
+*.unitypackage
+
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.keystore
+*.jks
+
+# Keep Unity asset metadata with its source files.
