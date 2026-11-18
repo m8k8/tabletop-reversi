@@ -14,7 +14,7 @@ namespace TabletopReversi
     public static class ReversiFlowVerification
     {
         enum Phase { Navigation, PausedOpening, CpuOpening, CpuReply, CancelledCpu, LocalUndo }
-        static readonly HashSet<string> MatchLabels = new HashSet<string> { "あなた", "CPU", "1P", "2P", "メニュー" };
+        static readonly HashSet<string> MatchLabels = new HashSet<string> { "あなた", "CPU", "1P", "2P", "メニュー", "の番です" };
         static ReversiGame game;
         static Phase phase;
         static bool running;
@@ -102,6 +102,7 @@ namespace TabletopReversi
             Check(game.CurrentScreen == ReversiGame.GameScreen.GameSelection, "settings back returns to game selection");
             Click("Choose Reversi");
             game.ConfigureMatch(false, 0, ReversiRules.White, false, false);
+            VerifyChoiceState("Opponent CPU", "Opponent Local");
             Click("Start Match");
             Check(game.CurrentScreen == ReversiGame.GameScreen.Match, "start button opens match");
             Check(!game.IsTwoPlayer && game.HumanPlayer == ReversiRules.White && game.Difficulty == 0,
@@ -120,7 +121,7 @@ namespace TabletopReversi
         static void VerifyPausedOpening()
         {
             Check(game.Rules.MoveCount == 0, "CPU does not place its opening disc while paused");
-            Click("Resume Match");
+            Click("Close Match Menu");
             Next(Phase.CpuOpening);
         }
 
@@ -181,6 +182,12 @@ namespace TabletopReversi
                 "stale CPU result cannot update the selection screen");
             Click("Choose Reversi");
             game.ConfigureMatch(true, 0, ReversiRules.White, true, false);
+            foreach (Text text in game.GetComponentsInChildren<Text>())
+            {
+                Check(text.text != "CPUの強さ", "local settings omit the CPU difficulty heading");
+                Check(!text.text.Contains("同じ画面で"), "local settings omit the turn-sharing explanation");
+            }
+            VerifyChoiceState("Opponent Local", "Opponent CPU");
             Click("Start Match");
             Check(game.IsTwoPlayer && game.HumanPlayer == ReversiRules.White && game.CanHumanMove,
                 "local two-player match accepts either human turn");
@@ -192,6 +199,7 @@ namespace TabletopReversi
             game.PlayCell(move.Row, move.Col);
             Check(game.Rules.MoveCount == 1 && game.Rules.CurrentPlayer == ReversiRules.White,
                 "local black move passes control to white");
+            VerifyTurnIndicator();
             Next(Phase.LocalUndo);
         }
 
@@ -216,29 +224,93 @@ namespace TabletopReversi
             foreach (Text text in game.GetComponentsInChildren<Text>())
             {
                 if (!text.gameObject.activeInHierarchy || string.IsNullOrEmpty(text.text)) continue;
-                Check(MatchLabels.Contains(text.text), "match contains only player names and menu text: " + text.text);
+                Check(MatchLabels.Contains(text.text), "match contains only player names, turn prompt and menu text: " + text.text);
                 Check(text.text != "黒" && text.text != "白", "colour words are absent from match HUD");
                 labelCount++;
                 if (text.text == lowerName) bottomName = text;
                 if (text.text == upperName) topName = text;
             }
-            Check(labelCount == 3, "match displays only two names and the menu button");
+            Check(labelCount == (game.IsTwoPlayer ? 4 : 3),
+                "match displays two names and menu, with a turn prompt only for local two-player games");
             Check(bottomName != null && topName != null, "both player names remain visible");
+            Check(bottomName.alignment == TextAnchor.MiddleRight, "the lower player name is right-aligned in its badge");
             Check(IsCorner(bottomName, false), "human or 1P badge appears in lower-left corner");
             Check(IsCorner(topName, true), "CPU or 2P badge appears in upper-right corner");
             bool hasMenu = false;
             foreach (Button button in game.GetComponentsInChildren<Button>())
                 if (button.name == "Open Match Menu" && button.interactable) hasMenu = true;
             Check(hasMenu, "a visible match menu button is available");
+            if (game.IsTwoPlayer) VerifyTurnIndicator();
+            else
+            {
+                bool hasTurnIcon = false, hasTurnPanel = false;
+                foreach (Image image in game.GetComponentsInChildren<Image>())
+                    if (image.name == "Turn disc") hasTurnIcon = true;
+                foreach (RectTransform rect in game.GetComponentsInChildren<RectTransform>())
+                    if (rect.name == "Current turn") hasTurnPanel = true;
+                Check(!hasTurnIcon && !hasTurnPanel, "CPU matches omit the turn indicator entirely");
+            }
         }
 
         static void VerifyMenuLabels()
         {
-            var labels = new HashSet<string>();
-            foreach (Text text in game.GetComponentsInChildren<Text>()) labels.Add(text.text);
-            Check(labels.Contains("閉じる"), "match menu includes a close action");
-            Check(!labels.Contains("ルール確認"), "match menu does not include a rules dialog entry");
-            Check(labels.Contains("対局をやめる"), "match menu includes quitting the match");
+            Button undo = FindButton("Undo Match");
+            var permitted = new HashSet<string> { "まった", "初めから", "対局をやめる", "×" };
+            Button[] actions = undo.transform.parent.GetComponentsInChildren<Button>();
+            Check(actions.Length == 4, "match menu has exactly three actions and one close button");
+            foreach (Button action in actions)
+            {
+                Text label = action.GetComponentInChildren<Text>();
+                Check(label != null && permitted.Remove(label.text), "match menu contains only the requested actions");
+            }
+            Check(permitted.Count == 0, "match menu exposes undo, restart, quit and the top-right close button");
+            Check(FindButton("Close Match Menu").interactable, "the close cross is available while CPU is paused");
+        }
+
+        static void VerifyChoiceState(string chosenName, string idleName)
+        {
+            Color chosen = FindButton(chosenName).GetComponent<Image>().color;
+            Color idle = FindButton(idleName).GetComponent<Image>().color;
+            float range = Mathf.Max(idle.r, Mathf.Max(idle.g, idle.b)) - Mathf.Min(idle.r, Mathf.Min(idle.g, idle.b));
+            Check(range < .1f && idle.grayscale > .25f && idle.grayscale < .65f,
+                "unselected settings use a readable neutral gray");
+            Check(Mathf.Abs(chosen.r - idle.r) + Mathf.Abs(chosen.g - idle.g) + Mathf.Abs(chosen.b - idle.b) > .2f,
+                "selected settings retain a visibly distinct theme color");
+        }
+
+        static void VerifyTurnIndicator()
+        {
+            // Navigation creates these RectTransforms in this same editor tick.
+            // Resolve the canvas layout before projecting their positions to the game view.
+            Canvas.ForceUpdateCanvases();
+            Image disc = null;
+            foreach (Image image in game.GetComponentsInChildren<Image>())
+                if (image.name == "Turn disc") disc = image;
+            Check(disc != null && disc.transform.parent.name == "Current turn", "current turn is represented by a disc icon");
+            Text prompt = disc.transform.parent.GetComponentInChildren<Text>();
+            Check(prompt != null && prompt.text == "の番です", "turn prompt uses the disc instead of a color word");
+            // Editor Screen dimensions may include a different Game View size than this canvas.
+            // Compare both rendered elements in board-local space instead of normalizing by Screen.
+            RectTransform panel = (RectTransform)disc.transform.parent;
+            var corners = new Vector3[4];
+            panel.GetWorldCorners(corners);
+            float panelBottom = float.PositiveInfinity;
+            foreach (Vector3 corner in corners)
+                panelBottom = Mathf.Min(panelBottom, game.BoardView.rectTransform.InverseTransformPoint(corner).y);
+            Vector3 panelCenter = game.BoardView.rectTransform.InverseTransformPoint(panel.TransformPoint(panel.rect.center));
+            Vector2 first = game.BoardView.CellCenter(0, 0), last = game.BoardView.CellCenter(0, 7);
+            float planeTop = first.y + (first.y - game.BoardView.CellCenter(1, 0).y) * .5f;
+            Check(panelCenter.x > first.x && panelCenter.x < last.x && panelBottom > planeTop,
+                "entire turn indicator sits above the board's playing plane");
+            Check(game.Rules.CurrentPlayer == ReversiRules.Black ? disc.color.grayscale < .4f : disc.color.grayscale > .6f,
+                "turn disc follows the current player's black or white color");
+        }
+
+        static Button FindButton(string name)
+        {
+            foreach (Button button in game.GetComponentsInChildren<Button>())
+                if (button.name == name && button.gameObject.activeInHierarchy) return button;
+            throw new InvalidOperationException("Visible button not found: " + name);
         }
 
         static bool IsCorner(Text text, bool upperRight)

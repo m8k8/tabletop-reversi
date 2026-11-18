@@ -124,6 +124,9 @@ namespace TabletopReversi
             if (!Ready()) return;
             Check(HasText("リバーシについて"), "settings uses the requested game-information heading");
             Check(HasText("駒を置ける場所を表示") && HasText("コマの効果音"), "settings labels describe the two toggles directly");
+            foreach (Button button in game.GetComponentsInChildren<Button>())
+                Check(button.name != "Replay Toggle Playback", "settings omit the playback pause button");
+            RejectText("一時停止");
             RejectText("リバーシの設定", "あそびかたを選んで、さあ、ひと勝負。", "アシスト", "サウンド");
             RejectContains("黒が先手です。", "対局中は Esc /");
             Check(game.GetComponentsInChildren<TabletopBoardGraphic>().Length == 0, "settings uses the rules film instead of a static board graphic");

@@ -15,7 +15,6 @@ namespace TabletopReversi
         double pendingSeek = -1;
         float progressWidth = -1;
         public Image ProgressFill;
-        public Text PlaybackLabel;
 
         public bool IsReady => player != null && player.isPrepared && !failed;
         public bool IsPlaying => IsReady && player.isPlaying;
@@ -122,9 +121,7 @@ namespace TabletopReversi
                 float progress = Mathf.Clamp01((float)(PlaybackTime / (tutorial ? ReversiReplayTimeline.Duration : ReversiReplayTimeline.SelectionDuration)));
                 ProgressFill.rectTransform.sizeDelta = new Vector2(progressWidth * progress, ProgressFill.rectTransform.sizeDelta.y);
             }
-            if (PlaybackLabel != null) PlaybackLabel.text = playRequested ? "一時停止" : "再生";
         }
-        public void TogglePlayback() { SetPaused(playRequested); }
         public void SetPaused(bool paused)
         {
             playRequested = !paused;

@@ -10,14 +10,15 @@ namespace TabletopReversi
     {
         TabletopBoardGraphic board;
         RectTransform canvasRoot, screenRoot, modal;
-        RectTransform toastPanel;
+        RectTransform toastPanel, turnPanel;
         Text toastText;
+        Image turnDisc;
         UiPlayerBadge lowerPlayer, upperPlayer;
         ReversiReplayPlayer screenReplay;
         GameScreen renderedScreen;
         static Sprite uiRounded, uiCircle;
         static readonly Color Ink = C("#203D34"), Teal = C("#10534D"), Muted = C("#506357"), Paper = C("#F7F7EF");
-        static readonly Color Secondary = C("#3D5D50"), OptionIdle = C("#526D5E"), SelectionRim = C("#D7BD78"), Hud = C("#203F34");
+        static readonly Color Secondary = C("#3D5D50"), OptionIdle = C("#636B70"), SelectionRim = C("#D7BD78"), Hud = C("#203F34");
         static readonly string[] UiDifficultyLabels = { "やさしい", "ふつう", "つよい" };
 
         sealed class UiPlayerBadge
@@ -60,7 +61,7 @@ namespace TabletopReversi
             bool guidePlaying = !preserveGuide || screenReplay.WantsToPlay;
             if (modal != null) { modal.gameObject.SetActive(false); Destroy(modal.gameObject); modal = null; }
             if (screenRoot != null) { screenRoot.gameObject.SetActive(false); Destroy(screenRoot.gameObject); }
-            board = null; lowerPlayer = null; upperPlayer = null; toastPanel = null; toastText = null; screenReplay = null;
+            board = null; lowerPlayer = null; upperPlayer = null; toastPanel = null; toastText = null; turnPanel = null; turnDisc = null; screenReplay = null;
             screenRoot = Rect(canvasRoot, "Screen " + CurrentScreen, 0, 0, 1600, 1000);
             switch (CurrentScreen)
             {
@@ -104,38 +105,37 @@ namespace TabletopReversi
             var stage = Label(screenRoot, "", 86, 744, 698, 31, 18, Teal, true);
             var caption = Label(screenRoot, "", 86, 784, 698, 70, 18, Ink);
             screenReplay.SetCaptionTargets(caption, stage);
-            var previous = Action(screenRoot, "←  前の場面", 86, 881, 205, 47, () => screenReplay.StepChapter(-1), Secondary, Color.white, 15);
+            var previous = Action(screenRoot, "←  前の場面", 86, 881, 340, 47, () => screenReplay.StepChapter(-1), Secondary, Color.white, 15);
             previous.name = "Replay Previous Chapter";
-            var playback = Action(screenRoot, "一時停止", 309, 881, 205, 47, () => screenReplay.TogglePlayback(), Secondary, Color.white, 15);
-            playback.name = "Replay Toggle Playback"; screenReplay.PlaybackLabel = playback.GetComponentInChildren<Text>();
-            var next = Action(screenRoot, "次の場面  →", 532, 881, 252, 47, () => screenReplay.StepChapter(1), Secondary, Color.white, 15);
+            var next = Action(screenRoot, "次の場面  →", 444, 881, 340, 47, () => screenReplay.StepChapter(1), Secondary, Color.white, 15);
             next.name = "Replay Next Chapter";
-            var settings = Panel(screenRoot, "Match settings", 860, 128, 660, 706, C("#FFFFF8"), 25).rectTransform;
+            float compact = pendingTwoPlayers ? 112 : 0;
+            var settings = Panel(screenRoot, "Match settings", 860, 128, 660, 706 - compact, C("#FFFFF8"), 25).rectTransform;
             Label(settings, "対戦の準備", 40, 24, 580, 44, 25, Ink, true);
             Label(settings, "対戦相手", 40, 89, 580, 30, 15, Muted);
             Option(settings, "CPUと対戦", "Opponent CPU", 40, 127, 282, 51, !pendingTwoPlayers, () => { pendingTwoPlayers = false; RenderScreen(); });
             Option(settings, "ふたりで", "Opponent Local", 338, 127, 282, 51, pendingTwoPlayers, () => { pendingTwoPlayers = true; RenderScreen(); });
-            Label(settings, "CPUの強さ", 40, 197, 580, 30, 15, Muted);
-            if (pendingTwoPlayers)
-                Label(settings, "同じ画面で、交互に操作します。", 40, 238, 580, 45, 17, Muted);
-            else
+            if (!pendingTwoPlayers)
+            {
+                Label(settings, "CPUの強さ", 40, 197, 580, 30, 15, Muted);
                 for (int i = 0; i < 3; i++)
                 {
                     int value = i;
                     Option(settings, UiDifficultyLabels[i], "Difficulty " + i, 40 + i * 199, 238, 182, 47, pendingDifficulty == i,
                         () => { pendingDifficulty = value; RenderScreen(); });
                 }
-            Label(settings, pendingTwoPlayers ? "1Pのコマ" : "あなたのコマ", 40, 305, 580, 30, 15, Muted);
-            ColorOption(settings, ReversiRules.Black, 40, 344, pendingPlayer == ReversiRules.Black);
-            ColorOption(settings, ReversiRules.White, 338, 344, pendingPlayer == ReversiRules.White);
-            Label(settings, "駒を置ける場所を表示", 40, 426, 352, 47, 17, Ink, true);
-            Option(settings, "ON", "Assist On", 410, 426, 99, 47, pendingAssist, () => { pendingAssist = true; RenderScreen(); });
-            Option(settings, "OFF", "Assist Off", 521, 426, 99, 47, !pendingAssist, () => { pendingAssist = false; RenderScreen(); });
-            Label(settings, "コマの効果音", 40, 499, 352, 47, 17, Ink, true);
-            Option(settings, "ON", "Sound On", 410, 499, 99, 47, pendingSound, () => { pendingSound = true; RenderScreen(); });
-            Option(settings, "OFF", "Sound Off", 521, 499, 99, 47, !pendingSound, () => { pendingSound = false; RenderScreen(); });
-            Panel(settings, "Settings separator", 40, 578, 580, 1, C("#E0E6DA"), 0).raycastTarget = false;
-            var start = Action(settings, "対局をはじめる  →", 40, 605, 580, 64, StartMatch, Teal, Color.white, 22);
+            }
+            Label(settings, pendingTwoPlayers ? "1Pのコマ" : "あなたのコマ", 40, 305 - compact, 580, 30, 15, Muted);
+            ColorOption(settings, ReversiRules.Black, 40, 344 - compact, pendingPlayer == ReversiRules.Black);
+            ColorOption(settings, ReversiRules.White, 338, 344 - compact, pendingPlayer == ReversiRules.White);
+            Label(settings, "駒を置ける場所を表示", 40, 426 - compact, 352, 47, 17, Ink, true);
+            Option(settings, "ON", "Assist On", 410, 426 - compact, 99, 47, pendingAssist, () => { pendingAssist = true; RenderScreen(); });
+            Option(settings, "OFF", "Assist Off", 521, 426 - compact, 99, 47, !pendingAssist, () => { pendingAssist = false; RenderScreen(); });
+            Label(settings, "コマの効果音", 40, 499 - compact, 352, 47, 17, Ink, true);
+            Option(settings, "ON", "Sound On", 410, 499 - compact, 99, 47, pendingSound, () => { pendingSound = true; RenderScreen(); });
+            Option(settings, "OFF", "Sound Off", 521, 499 - compact, 99, 47, !pendingSound, () => { pendingSound = false; RenderScreen(); });
+            Panel(settings, "Settings separator", 40, 578 - compact, 580, 1, C("#E0E6DA"), 0).raycastTarget = false;
+            var start = Action(settings, "対局をはじめる  →", 40, 605 - compact, 580, 64, StartMatch, Teal, Color.white, 22);
             start.name = "Start Match";
         }
 
@@ -145,6 +145,15 @@ namespace TabletopReversi
             board.ShowLegal = showLegal;
             var menu = Action(screenRoot, "メニュー", 56, 40, 160, 54, ShowPause, Hud, Color.white, 18);
             menu.name = "Open Match Menu";
+            if (twoPlayers)
+            {
+                turnPanel = Panel(screenRoot, "Current turn", 700, 35, 200, 64, Hud, 31).rectTransform;
+                turnPanel.GetComponent<Image>().raycastTarget = false;
+                Disc(turnPanel, 16, 9, 46, C("#B6C3AA"));
+                turnDisc = Disc(turnPanel, 18, 11, 42, C("#23322A"));
+                turnDisc.name = "Turn disc";
+                Label(turnPanel, "の番です", 76, 0, 108, 64, 24, Color.white, true, TextAnchor.MiddleCenter);
+            }
             lowerPlayer = PlayerBadge(screenRoot, "Lower player", 56, 885, humanPlayer, false);
             upperPlayer = PlayerBadge(screenRoot, "Upper player", 1320, 40, -humanPlayer, true);
             toastPanel = Panel(screenRoot, "Transient message", 430, 914, 740, 47, Hud, 23).rectTransform;
@@ -167,7 +176,8 @@ namespace TabletopReversi
             {
                 Outline = outline,
                 Player = player,
-                Name = Label(background.transform, "", textX, 0, 126, 74, 24, Color.white, true)
+                Name = Label(background.transform, "", textX, 0, 126, 74, 24, Color.white, true,
+                    right ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight)
             };
         }
 
@@ -175,6 +185,11 @@ namespace TabletopReversi
         {
             if (CurrentScreen != GameScreen.Match || Rules == null) return;
             UpdateBadge(lowerPlayer); UpdateBadge(upperPlayer);
+            if (turnPanel != null)
+            {
+                turnPanel.gameObject.SetActive(!Rules.IsFinished);
+                turnDisc.color = Rules.CurrentPlayer == ReversiRules.Black ? C("#23322A") : C("#CED7C6");
+            }
             if (toastPanel != null)
             {
                 bool visible = !string.IsNullOrEmpty(toast) && Time.unscaledTime < toastUntil;
@@ -195,15 +210,13 @@ namespace TabletopReversi
         {
             if (CurrentScreen != GameScreen.Match) return;
             if (modal != null) { CloseModal(); return; }
-            var p = CreateModal("対局メニュー", 465);
-            Action(p, "閉じる", 40, 104, 580, 57, CloseModal, Teal, Color.white, 21).name = "Resume Match";
-            var hint = Action(p, "✦  ヒント", 40, 179, 282, 53, () => { CloseModal(); ShowHint(); }, Secondary, Color.white, 18);
-            hint.interactable = IsHumanTurn;
-            var undo = Action(p, "↶  待った", 338, 179, 282, 53, () => { CloseModal(); UndoMove(); }, Secondary, Color.white, 18);
+            var p = CreateModal("対局メニュー", 350);
+            p.Find("Close Dialog").name = "Close Match Menu";
+            var undo = Action(p, "まった", 40, 104, 580, 54, () => { CloseModal(); UndoMove(); }, Secondary, Color.white, 18);
+            undo.name = "Undo Match";
             undo.interactable = CanUndo;
-            Action(p, "はじめから", 40, 250, 580, 49, RequestReset, Secondary, Color.white, 17);
-            Action(p, "設定を変える", 40, 313, 580, 49, RequestSettings, Secondary, Color.white, 17);
-            Action(p, "対局をやめる", 40, 376, 580, 49, RequestGameSelection, Secondary, Color.white, 17);
+            Action(p, "初めから", 40, 174, 580, 54, RequestReset, Secondary, Color.white, 18).name = "Restart Match";
+            Action(p, "対局をやめる", 40, 244, 580, 54, RequestGameSelection, Secondary, Color.white, 18).name = "Quit Match";
         }
 
         RectTransform CreateModal(string title, int height)
@@ -212,7 +225,7 @@ namespace TabletopReversi
             modal = Panel(canvasRoot, "Modal shade", 0, 0, 1600, 1000, new Color(.08f, .14f, .11f, .42f), 0).rectTransform;
             var p = Panel(modal, "Dialog", 470, (1000 - height) * .5f, 660, height, C("#FCFCF4"), 25).rectTransform;
             Label(p, title, 40, 27, 518, 53, 29, Ink, true);
-            Action(p, "×", 580, 28, 43, 43, CloseModal, Secondary, Color.white, 25);
+            Action(p, "×", 580, 28, 43, 43, CloseModal, Secondary, Color.white, 25).name = "Close Dialog";
             Play(clickSound);
             return p;
         }
